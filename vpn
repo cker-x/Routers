@@ -1,0 +1,6 @@
+R1(config)#crypto isakmp policy 10          (10为号码，可随意设置，从小到大匹配加密模式)
+R1(config-isakmp)#enaryption 3des          (使用3des加密)
+R1(config-isakmp)#hash md5                   （用MD5来进行完整性校验）
+R1(config-isakmp)#group 5                        (一般使用5或者2，支持比较好）
+R1(config-isakmp)#authentication pre-share      (认证方式为 与共享密钥)
+*R1(config-isakmp)#lifetime 86400              （默认为86400）
