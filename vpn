@@ -1,6 +1,50 @@
+1、确保加密点可达
+ 直连能ping通
+2、加密算法策略（一阶段）
 R1(config)#crypto isakmp policy 10          (10为号码，可随意设置，从小到大匹配加密模式)
 R1(config-isakmp)#enaryption 3des          (使用3des加密)
 R1(config-isakmp)#hash md5                   （用MD5来进行完整性校验）
 R1(config-isakmp)#group 5                        (一般使用5或者2，支持比较好）
 R1(config-isakmp)#authentication pre-share      (认证方式为 与共享密钥)
 *R1(config-isakmp)#lifetime 86400              （默认为86400）
+
+3、配置预共享密钥用于身份认证
+R1(config)#crypto iskmp key 0 cisco123 address 186.81.1.1          (cisco123为密钥，对端ip地址，0代表show run可以看到)
+R2(config)#crypto iskmp key cisco123 address 128.73.1.1
+（两端的预共享密钥设置成一样的）
+4、配置转换集（二阶段）
+R1(config)#crypto ipsec transform-set AES-SHA esp-aes 256 esp-sha256-hmac
+transform-set-------转换集
+AES-SHA---------名字叫AES-SHA，本地有效
+esp-aes  256-----------使用esp-aes封装，密钥长度为256位
+ esp-sha256-hmac------对加密的包做完整性校验的算法
+*R1(cfg-crypto-trans)#mode tunnel        (模式有tunnel和transport，默认为tunnel)
+R2同上
+
+5、配置感兴趣流（匹配需要用VPN保护的流量）
+R1(config)#access-list 100 permit ip 192.168.1.0 0.0.0.255 172.16.1.0 0.0.0.255
+      (配置访问访问控制列表，允许192.168.1.0网段到172.16.1.0网段)
+R2(config)#access-list 100 permit ip 172.16.1.0  0.0.0.255 192.168.1.0 0.0.0.255
+
+6、定义crypto map策略，调用到公网接口
+R1(config)#crypto map CMAP 10  ipsec-isakmp
+（CMAP为随便一个名字，10为行号，用isakmp管理ipsec密钥）
+(一个端口只能调用一个map，但是map可以关联多个ID)
+R1(config-crypto-map)#set peer 186.81.1.1            (“跟谁建”加密流量发给谁,或者与谁加密)
+R1(config-crypto-map)#match address 100      (“什么流量”调用感兴趣列表，描述什么流量需要加密)
+R1(config-crypto-map)#set transform-set AEC-SHA        (“如何处理这个流量”使用什么算法加密封装 )  
+
+  
+R1(config)#int fa0/0                          
+R1(config-if)#cry map CMAP                       (调用在出站接口上)
+
+Show crypto session         （查看vpn会话状态）
+Show crypto isakmp sa    （查看第一阶段SA）
+Show crypto ipsec sa  （查看第二阶段SA）
+Show crypto engine connections active   （查看加解密数量）
+Show crypto isakmp policy     （查看策略）
+
+清除ISAKMP/IEK SA：
+Clear crypto isakmp
+清除IPSec SA:
+Clear crypto sa
