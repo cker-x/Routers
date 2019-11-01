@@ -1,2 +1,7 @@
-##VPN是什么?
-一个用于网络连接的文档的编辑器
+![mahua](mahua-logo.jpg)
+##MaHua是什么?
+一个在线编辑markdown文档的编辑器
+
+向Mac下优秀的markdown编辑器mou致敬
+
+##MaHua有哪些功能？
