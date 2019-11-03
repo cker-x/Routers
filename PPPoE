@@ -1,0 +1,219 @@
+拓扑很简单：Router ——Switch——client PC
+配置主要分为以下几个方面：
+
+1.配置内部接口G0/1
+interface GigabitEthernet0/1
+ip address 192.168.0.1 255.255.255.0            //设置接口内部IP地址
+ip nat inside    //确认inside 接口
+no shutdown                         //开启端口
+
+2.配置DHCP服务
+ip dhcp excluded-address 192.168.0.1      //设置保留不分配内部地址
+ip dhcp pool client              //配置DHCP地址池client 
+network 192.168.0.0 255.255.255.0       
+default-router 192.168.0.1             //配置客户端PC获取路由
+dns-server 192.168.0.1          //配置内部网络DNS
+
+3.配置DNS服务
+ip dns server          //启用Router路由功能 
+ip domain-lookup             //禁止域名解析
+ip name-server 221.228.255.1  218.2.135.1     //指定首选和备用DNS（各地有差异，请选择速度较快的） 
+
+4.配置外部接口G0/0
+interface GigabitEthernet0/0
+pppoe enable group global        //开启外部接口pppoe功能，允许接口运行ppoe
+pppoe-client dial-pool-number 2     //将以太网接口的pppoe拨号客户端加入拨号地址池2，即需要完成物理接口和逻辑地址池dial-pool-number 2之间的绑定
+
+5.配置逻辑接口
+interface Dialer1                 //进入逻辑接口
+ip address negotiated      //与Adsl服务商动态协商获取IP地址
+ip mtu 1492      //定义帧数，因为PPP封装的原因，ip mtu要做相应调整
+ip nat outside     //确认outside接口
+encapsulation ppp    //封装ppp协议
+ip tcp adjust-mss 1452           // 命令调整 TCP SYN 数据包的 MSS（最大数据段大小）
+dialer pool 2   //该接口使用拨号地址池2进行拨号
+ppp authentication chap callin      //将认证模式设置为chap
+ppp chap hostname XXX       //设置chap用户名（一般为11位的账户名）
+ppp chap password XXX    //设置chap密码
+ppp pap sent-username XXX password  XXX    //拨号使用pap或者chap需依据服务商配置
+ppp ipcp dns request       //动态获取dns
+ 
+6.配置NAT服务
+access-list 1 permit 192.168.0.0 0.0.0.255
+ip nat inside source list 1 interface Dialer1 overload
+ 
+7.配置Router
+ ip route 0.0.0.0 0.0.0.0 Dialer1
+ 
+PS:
+1.cisco对于pppoe的设置采用的是BBA-group，而不是VPDN-group
+所以没有办法在vpdn enable下面启用protocol pppoe
+2.对于cisco设备客户端而言也就不需要去设置vpdn enable,即不需要配置VPDN服务
+3.排错命令：debug pppoe events
+================================================================================================
+Router#show run
+Building configuration...
+ 
+ 
+Current configuration : 2093 bytes
+!
+! Last configuration change at 07:12:16 UTC Wed Aug 8 2018
+version 15.2
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname Router
+!
+boot-start-marker
+boot-end-marker
+!
+!
+!
+no aaa new-model
+!
+!
+!
+ip cef
+!
+!
+!        
+ip dhcp excluded-address 192.168.0.1
+!
+ip dhcp pool client
+ network 192.168.0.0 255.255.255.0
+ default-router 192.168.0.1
+ dns-server 114.114.114.114
+!
+!
+!
+ip name-server 221.228.255.1
+ip name-server 218.2.135.1
+no ipv6 cef
+!
+multilink bundle-name authenticated
+!
+vpdn enable
+!
+!
+!
+!
+!
+voice-card 0
+!        
+!
+!
+!
+!
+!
+!
+!
+license udi pid CISCO2951/K9 sn FTX1746AHG7
+hw-module pvdm 0/0
+!
+!
+!
+!
+redundancy
+!
+!
+!
+!
+!
+!
+!
+!
+!        
+!
+!
+!
+!
+!
+interface Embedded-Service-Engine0/0
+ no ip address
+ shutdown
+!
+interface GigabitEthernet0/0
+ no ip address
+ duplex full
+ speed auto
+ pppoe enable group global
+ pppoe-client dial-pool-number 2
+!
+interface GigabitEthernet0/1
+ ip address 192.168.0.1 255.255.255.0
+ ip nat inside
+ ip virtual-reassembly in
+ duplex auto
+ speed auto
+!        
+interface GigabitEthernet0/2
+ ip address dhcp
+ duplex auto
+ speed auto
+!
+interface Dialer1
+ ip address negotiated
+ ip mtu 1492
+ ip nat outside
+ ip virtual-reassembly in        //ip虚拟分片重组
+ encapsulation ppp
+ ip tcp adjust-mss 1452
+ dialer pool 2
+ ppp authentication chap callin
+ ppp chap hostname 11122233344
+ ppp chap password 0 1234
+ ppp pap sent-username 11122233344 password 0 123412
+ ppp ipcp dns request
+!
+ip forward-protocol nd
+!
+no ip http server
+no ip http secure-server
+!
+ip dns server
+ip nat inside source list 1 interface Dialer1 overload
+ip route 0.0.0.0 0.0.0.0 Dialer1
+!
+access-list 1 permit 192.168.0.0 0.0.0.255
+!
+nls resp-timeout 1
+cpd cr-id 1
+!
+!
+control-plane
+!
+!
+voice-port 0/0/0
+!
+voice-port 0/0/1
+!
+voice-port 0/0/2
+!
+voice-port 0/0/3
+ !
+ !       
+mgcp profile default
+!
+!
+gatekeeper
+ shutdown
+!
+line con 0
+line aux 0
+line 2
+ no activation-character
+ no exec
+ transport preferred none
+ transport output pad telnet rlogin lapb-ta mop udptn v120 ssh
+ stopbits 1
+line vty 0 4
+ login
+ transport input all
+!
+scheduler allocate 20000 1000
+!
+end
+
+来自 <https://www.cnblogs.com/cker/articles/9783555.html> 
+
