@@ -123,12 +123,6 @@ redundancy
 !
 !
 !
-!        
-!
-!
-!
-!
-!
 interface Embedded-Service-Engine0/0
  no ip address
  shutdown
